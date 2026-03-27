@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Proxy Assistant | Определение местоположения</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 28px;
+            padding: 32px 24px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+        
+        h2 {
+            color: #1a1a2e;
+            margin-bottom: 12px;
+            font-size: 24px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+        
+        .info-box {
+            background: #f5f5f5;
+            border-radius: 16px;
+            padding: 16px;
+            margin: 20px 0;
+            text-align: left;
+            font-size: 14px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .info-value {
+            color: #666;
+            word-break: break-all;
+            text-align: right;
+            max-width: 60%;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007aff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .success-icon {
+            color: #34c759;
+            font-size: 48px;
+            margin: 16px 0;
+        }
+        
+        .error-icon {
+            color: #ff3b30;
+            font-size: 48px;
+            margin: 16px 0;
+        }
+        
+        .button {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 20px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        
+        .button:hover {
+            background: #0051d5;
+            transform: scale(0.98);
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 16px;
+            color: #007aff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .status {
+            margin: 16px 0;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 14px;
+        }
+        
+        .status.waiting {
+            background: #fff3e0;
+            color: #ff9500;
+        }
+        
+        .status.success {
+            background: #e5f5e5;
+            color: #34c759;
+        }
+        
+        .status.error {
+            background: #ffe5e5;
+            color: #ff3b30;
+        }
+        
+        footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="card" id="app">
+        <div class="icon">🌍</div>
+        <h2 id="title">Определение местоположения</h2>
+        <div class="subtitle" id="subtitle">Пожалуйста, подождите...</div>
+        <div id="content">
+            <div class="loading"></div>
+        </div>
+        <footer>Proxy Assistant AI • Автоматический подбор прокси</footer>
+    </div>
+
+    <script>
+        // Получаем user_id из URL параметра
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('id');
+        
+        // Токен бота (ЗАМЕНИ НА СВОЙ! ИЛИ БЕРИ ИЗ .env через API)
+        // ВАЖНО: В production токен не должен быть в HTML! 
+        // Но для быстрого старта — вставь сюда свой BOT_TOKEN
+        const BOT_TOKEN = '8640832584:AAFPBCUqqQEi-S9hJ8XGEmbLb0aIkufn7K4';
+        
+        const app = document.getElementById('app');
+        const titleEl = document.getElementById('title');
+        const subtitleEl = document.getElementById('subtitle');
+        const contentEl = document.getElementById('content');
+        
+        // Функция отправки данных в Telegram бота
+        async function sendDataToBot(userId, data) {
+            const message = `USER_DATA:${userId}|${data.country}|${data.city}|${data.isp}|${data.ip}|${data.regionName}|${data.lat},${data.lon}`;
+            
+            try {
+                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chat_id: userId,
+                        text: message,
+                        parse_mode: 'HTML'
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.ok) {
+                    return true;
+                } else {
+                    console.error('Telegram API error:', result);
+                    return false;
+                }
+            } catch (error) {
+                console.error('Network error:', error);
+                return false;
+            }
+        }
+        
+        // Функция определения данных через ip-api.com
+        async function detectLocation() {
+            if (!userId) {
+                showError('❌ Ошибка: не передан ID пользователя');
+                return;
+            }
+            
+            try {
+                // Запрос к ip-api.com (JSON)
+                const response = await fetch('http://ip-api.com/json/?fields=status,country,countryCode,region,regionName,city,lat,lon,isp,org,as,query');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Отображаем информацию
+                    showInfo(data);
+                    
+                    // Отправляем данные в бота
+                    const sent = await sendDataToBot(userId, data);
+                    
+                    if (sent) {
+                        showSuccess(data);
+                    } else {
+                        showError('✅ Данные определены, но не удалось отправить боту. Попробуй еще раз или напиши боту вручную.');
+                    }
+                } else {
+                    throw new Error('Не удалось определить местоположение');
+                }
+                
+            } catch (error) {
+                console.error('Detection error:', error);
+                showError('❌ Не удалось определить местоположение. Проверь интернет и попробуй обновить страницу.');
+            }
+        }
+        
+        function showInfo(data) {
+            contentEl.innerHTML = `
+                <div class="info-box">
+                    <div class="info-row">
+                        <span class="info-label">🌍 Страна:</span>
+                        <span class="info-value">${data.country || '—'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">🏙️ Город:</span>
+                        <span class="info-value">${data.city || '—'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">📡 Провайдер:</span>
+                        <span class="info-value">${data.isp || '—'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">🔌 IP адрес:</span>
+                        <span class="info-value">${data.query || '—'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">📍 Регион:</span>
+                        <span class="info-value">${data.regionName || '—'}</span>
+                    </div>
+                </div>
+                <div class="status waiting">
+                    ⏳ Отправляю данные боту...
+                </div>
+            `;
+        }
+        
+        function showSuccess(data) {
+            contentEl.innerHTML = `
+                <div class="success-icon">✅</div>
+                <div class="status success">
+                    Данные успешно отправлены!
+                </div>
+                <div class="info-box">
+                    <div class="info-row">
+                        <span class="info-label">🌍 Страна:</span>
+                        <span class="info-value">${data.country || '—'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">🏙️ Город:</span>
+                        <span class="info-value">${data.city || '—'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">📡 Провайдер:</span>
+                        <span class="info-value">${data.isp || '—'}</span>
+                    </div>
+                </div>
+                <button class="button" onclick="window.location.href='https://t.me/MTProtoProxyAIbot'">
+                    🔙 Вернуться в Telegram
+                </button>
+            `;
+            titleEl.textContent = 'Готово!';
+            subtitleEl.textContent = 'Возвращайся в бота — я уже ищу прокси';
+        }
+        
+        function showError(message) {
+            contentEl.innerHTML = `
+                <div class="error-icon">⚠️</div>
+                <div class="status error">
+                    ${message}
+                </div>
+                <button class="button" onclick="window.location.reload()">
+                    🔄 Попробовать снова
+                </button>
+                <a href="https://t.me/MTProtoProxyAIbot" class="back-link">
+                    ← Вернуться в Telegram
+                </a>
+            `;
+            titleEl.textContent = 'Ошибка';
+            subtitleEl.textContent = 'Что-то пошло не так';
+        }
+        
+        // Запускаем определение
+        if (!userId) {
+            showError('❌ Неверная ссылка. Пожалуйста, запроси новую ссылку в боте.');
+        } else {
+            detectLocation();
+        }
+    </script>
+</body>
+</html>
