@@ -1,150 +1,201 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Proxy Assistant | Определение местоположения</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Определение местоположения</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
             padding: 20px;
         }
-        .card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 28px;
-            padding: 32px 24px;
-            max-width: 400px;
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
             width: 100%;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             text-align: center;
         }
-        .icon { font-size: 64px; margin-bottom: 16px; }
-        h2 { color: #1a1a2e; margin-bottom: 12px; font-size: 24px; }
-        .subtitle { color: #666; margin-bottom: 24px; font-size: 14px; }
-        .info-box { background: #f5f5f5; border-radius: 16px; padding: 16px; margin: 20px 0; text-align: left; font-size: 14px; }
-        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e0e0e0; }
-        .info-row:last-child { border-bottom: none; }
-        .info-label { font-weight: 600; color: #333; }
-        .info-value { color: #666; word-break: break-all; text-align: right; max-width: 60%; }
-        .loading { display: inline-block; width: 24px; height: 24px; border: 3px solid #f3f3f3; border-top: 3px solid #007aff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .success-icon { color: #34c759; font-size: 48px; margin: 16px 0; }
-        .error-icon { color: #ff3b30; font-size: 48px; margin: 16px 0; }
-        .button { background: #007aff; color: white; border: none; padding: 12px 24px; border-radius: 30px; font-size: 16px; font-weight: 600; margin-top: 20px; cursor: pointer; width: 100%; }
-        .button:hover { background: #0051d5; }
-        .back-link { display: inline-block; margin-top: 16px; color: #007aff; text-decoration: none; font-size: 14px; }
-        .status { margin: 16px 0; padding: 12px; border-radius: 12px; font-size: 14px; }
-        .status.waiting { background: #fff3e0; color: #ff9500; }
-        .status.success { background: #e5f5e5; color: #34c759; }
-        .status.error { background: #ffe5e5; color: #ff3b30; }
-        footer { margin-top: 20px; font-size: 12px; color: #999; }
+
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .status {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .info-item {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
     </style>
 </head>
+
 <body>
-    <div class="card" id="app">
-        <div class="icon">🌍</div>
-        <h2 id="title">Определение местоположения</h2>
-        <div class="subtitle" id="subtitle">Пожалуйста, подождите...</div>
-        <div id="content"><div class="loading"></div></div>
-        <footer>Proxy Assistant AI • Автоматический подбор прокси</footer>
+    <div class="container">
+        <div class="loader" id="loader"></div>
+        <h1>🌍 Определение местоположения</h1>
+        <p class="status" id="status">Получаем данные о вашем местоположении...</p>
+        <div class="info" id="info" style="display: none;"></div>
     </div>
 
     <script>
+        // Получаем user_id из URL параметров
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id');
-        const BOT_TOKEN = '8640832584:AAFPBCUqqQEi-S9hJ8XGEmbLb0aIkufn7K4';
-        
-        const titleEl = document.getElementById('title');
-        const subtitleEl = document.getElementById('subtitle');
-        const contentEl = document.getElementById('content');
-        
-        async function sendDataToBot(userId, data) {
-            const message = `USER_DATA:${userId}|${data.country}|${data.city}|${data.isp}|${data.query}|${data.regionName}|${data.lat},${data.lon}`;
-            try {
-                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chat_id: userId, text: message, parse_mode: 'HTML' })
+
+        const statusEl = document.getElementById('status');
+        const infoEl = document.getElementById('info');
+        const loaderEl = document.getElementById('loader');
+
+        if (!userId) {
+            statusEl.textContent = '❌ Ошибка: не указан ID пользователя';
+            statusEl.className = 'status error';
+            loaderEl.style.display = 'none';
+        } else {
+            // Определяем местоположение через ipapi.co
+            fetch('https://ipapi.co/json/')
+                .then(response => response.json())
+                .then(data => {
+                    // Формируем сообщение для бота
+                    const message = `USER_DATA:${userId}|${data.country_name}|${data.city}|${data.org}|${data.ip}|${data.region}|${data.latitude},${data.longitude}`;
+
+                    // Показываем информацию пользователю
+                    loaderEl.style.display = 'none';
+                    statusEl.textContent = '✅ Данные успешно получены!';
+                    statusEl.className = 'status success';
+
+                    infoEl.style.display = 'block';
+                    infoEl.innerHTML = `
+                        <div class="info-item">
+                            <span class="info-label">🌍 Страна:</span> ${data.country_name}
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">🏙️ Город:</span> ${data.city}
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">🌐 Провайдер:</span> ${data.org}
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">📍 IP:</span> ${data.ip}
+                        </div>
+                        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+                            <p style="color: #667eea; font-weight: bold;">
+                                🤖 Возвращайся в бот - я уже подбираю прокси!
+                            </p>
+                        </div>
+                    `;
+
+                    // Отправляем данные боту
+                    // ВАРИАНТ 1: Через Telegram Web App API (если открыто в Telegram)
+                    if (window.Telegram && window.Telegram.WebApp) {
+                        window.Telegram.WebApp.sendData(message);
+                        setTimeout(() => {
+                            window.Telegram.WebApp.close();
+                        }, 2000);
+                    } else {
+                        // ВАРИАНТ 2: Через webhook или API вашего бота
+                        // Здесь нужно реализовать отправку через ваш backend
+                        console.log('Данные для отправки боту:', message);
+
+                        // Пример: отправка через ваш webhook
+                        // fetch('https://your-bot-webhook.com/location', {
+                        //     method: 'POST',
+                        //     headers: { 'Content-Type': 'application/json' },
+                        //     body: JSON.stringify({ message: message })
+                        // });
+
+                        // Для тестирования: показываем инструкцию
+                        infoEl.innerHTML += `
+                            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px;">
+                                <p style="color: #856404; font-size: 13px;">
+                                    ⚠️ Для работы вне Telegram отправьте это сообщение боту:<br>
+                                    <code style="display: block; margin-top: 10px; padding: 10px; background: white; border-radius: 5px; word-break: break-all; font-size: 11px;">
+                                        ${message}
+                                    </code>
+                                </p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    loaderEl.style.display = 'none';
+                    statusEl.textContent = '❌ Ошибка получения данных';
+                    statusEl.className = 'status error';
+                    console.error('Error:', error);
+
+                    infoEl.style.display = 'block';
+                    infoEl.innerHTML = `
+                        <p style="color: #dc3545;">
+                            Не удалось определить местоположение. Попробуйте еще раз или обратитесь в поддержку.
+                        </p>
+                    `;
                 });
-                const result = await response.json();
-                return result.ok;
-            } catch (error) {
-                console.error(error);
-                return false;
-            }
         }
-        
-        function detectLocation() {
-            if (!userId) {
-                showError('❌ Неверная ссылка. Запроси новую в боте.');
-                return;
-            }
-            
-            // Используем JSONP для обхода CORS
-            const script = document.createElement('script');
-            script.src = `https://ip-api.com/json/?callback=handleLocation&fields=status,country,countryCode,region,regionName,city,lat,lon,isp,org,as,query`;
-            document.head.appendChild(script);
-        }
-        
-        window.handleLocation = async function(data) {
-            if (data.status === 'success') {
-                showInfo(data);
-                const sent = await sendDataToBot(userId, data);
-                if (sent) {
-                    showSuccess(data);
-                } else {
-                    showError('✅ Данные определены, но не отправились боту. Попробуй еще раз.');
-                }
-            } else {
-                showError('❌ Не удалось определить местоположение. Проверь интернет.');
-            }
-        };
-        
-        function showInfo(data) {
-            contentEl.innerHTML = `
-                <div class="info-box">
-                    <div class="info-row"><span class="info-label">🌍 Страна:</span><span class="info-value">${data.country || '—'}</span></div>
-                    <div class="info-row"><span class="info-label">🏙️ Город:</span><span class="info-value">${data.city || '—'}</span></div>
-                    <div class="info-row"><span class="info-label">📡 Провайдер:</span><span class="info-value">${data.isp || '—'}</span></div>
-                    <div class="info-row"><span class="info-label">🔌 IP адрес:</span><span class="info-value">${data.query || '—'}</span></div>
-                </div>
-                <div class="status waiting">⏳ Отправляю данные боту...</div>
-            `;
-        }
-        
-        function showSuccess(data) {
-            contentEl.innerHTML = `
-                <div class="success-icon">✅</div>
-                <div class="status success">Данные успешно отправлены!</div>
-                <div class="info-box">
-                    <div class="info-row"><span class="info-label">🌍 Страна:</span><span class="info-value">${data.country || '—'}</span></div>
-                    <div class="info-row"><span class="info-label">🏙️ Город:</span><span class="info-value">${data.city || '—'}</span></div>
-                    <div class="info-row"><span class="info-label">📡 Провайдер:</span><span class="info-value">${data.isp || '—'}</span></div>
-                </div>
-                <button class="button" onclick="window.location.href='https://t.me/MTProtoProxyAIbot'">🔙 Вернуться в Telegram</button>
-            `;
-            titleEl.textContent = 'Готово!';
-            subtitleEl.textContent = 'Возвращайся в бота — я уже ищу прокси';
-        }
-        
-        function showError(message) {
-            contentEl.innerHTML = `
-                <div class="error-icon">⚠️</div>
-                <div class="status error">${message}</div>
-                <button class="button" onclick="window.location.reload()">🔄 Попробовать снова</button>
-                <a href="https://t.me/MTProtoProxyAIbot" class="back-link">← Вернуться в Telegram</a>
-            `;
-            titleEl.textContent = 'Ошибка';
-            subtitleEl.textContent = 'Что-то пошло не так';
-        }
-        
-        detectLocation();
     </script>
 </body>
+
 </html>
